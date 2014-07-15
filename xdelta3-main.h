@@ -541,7 +541,7 @@ xd3_mainerror(int err_num) {
 	    return x;
 	  }
 	memset (err_buf, 0, 256);
-	FormatMessage (FORMAT_MESSAGE_FROM_SYSTEM |
+	FormatMessageA (FORMAT_MESSAGE_FROM_SYSTEM |
 		       FORMAT_MESSAGE_IGNORE_INSERTS,
 		       NULL, err_num,
 		       MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT),
@@ -895,7 +895,19 @@ main_file_open (main_file *xfile, const char* name, int mode)
     }
 
 #elif XD3_WIN32
-  xfile->file = CreateFile(name,
+  wchar_t* temp;
+  size_t len;
+
+  len = strlen(name)+1;
+  temp = (wchar_t*) malloc(len * sizeof(wchar_t));
+
+  if (MultiByteToWideChar(CP_UTF8, 0, name, -1, temp, len) == 0)
+    {
+      free(temp);
+      return get_errno();
+    }
+
+  xfile->file = CreateFileW(temp,
 			   (mode == XO_READ) ? GENERIC_READ : GENERIC_WRITE,
 			   FILE_SHARE_READ,
 			   NULL,
@@ -908,6 +920,8 @@ main_file_open (main_file *xfile, const char* name, int mode)
     {
       ret = get_errno ();
     }
+
+  free(temp);
 #endif
   if (ret) { XF_ERROR ("open", name, ret); }
   else     { xfile->realname = name; xfile->nread = 0; }
